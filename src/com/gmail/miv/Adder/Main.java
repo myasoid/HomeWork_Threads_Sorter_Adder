@@ -2,42 +2,43 @@ package com.gmail.miv.Adder;
 
 
 import javafx.application.Application;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Scene;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
+import javafx.scene.image.WritableImage;
 import javafx.stage.Stage;
 
+import javax.imageio.ImageIO;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 
 public class Main extends Application {
+
     private static final int ELEMENTS_COUNT = (int) 6e8;
+    private static final int THREADS_COUNT = 20;
 
     public static void main(String[] args) {
-
         launch(args);
-
     }
 
     @Override
     public void start(Stage primaryStage) throws Exception {
 
-        primaryStage.setTitle("Line Chart Sample");
+        primaryStage.setTitle("Adder");
         //defining the axes
         final NumberAxis xAxis = new NumberAxis();
         final NumberAxis yAxis = new NumberAxis();
         xAxis.setLabel("Number of Threads");
         //creating the chart
-        final LineChart<Number, Number> lineChart =
-                new LineChart<Number, Number>(xAxis, yAxis);
+        final LineChart<Number, Number> lineChart = new LineChart<Number, Number>(xAxis, yAxis);
 
-        lineChart.setTitle("Nanotime");
+        lineChart.setTitle("Time, millisec");
         //defining a series
         XYChart.Series series = new XYChart.Series();
         series.setName("My research :)");
@@ -50,22 +51,23 @@ public class Main extends Application {
             array[i] = random.nextInt(20);
         }
 
-        int leftBorder, rightBorder;
         // size of thread pool
-        for (int i = 1; i <= 20; i++) {
-
-
-            long nanoTimeBegin = System.nanoTime();
+        for (int i = 1; i <= THREADS_COUNT; i++) {
 
             ExecutorService pool = Executors.newFixedThreadPool(i);
-            List<Future<Long>> futures = new ArrayList<Future<Long>>(i);
+
+            List<Callable<Long>> listCallable = new ArrayList<>();
 
             int len = (ELEMENTS_COUNT + i - 1) / i;
             for (int j = 0; j < i; j++) {
                 int left = j * len;
                 int right = Math.min(ELEMENTS_COUNT - 1, left + len - 1);
-                futures.add(pool.submit(new Adder(array, left, right)));
+                listCallable.add(new Adder(array, left, right));
             }
+
+            long start = System.nanoTime();
+            List<Future<Long>> futures = pool.invokeAll(listCallable);
+            long end = System.nanoTime();
 
             Long result = 0L;
             for (Future<Long> future : futures) {
@@ -76,25 +78,34 @@ public class Main extends Application {
                 } catch (ExecutionException e) {
                     e.printStackTrace();
                 }
-
-                //Compute the result
             }
-
             pool.shutdown();
 
-            long nanoTimeEnd = System.nanoTime();
+            long elapsedTime = end - start;
+            elapsedTime = TimeUnit.MILLISECONDS.convert(elapsedTime, TimeUnit.NANOSECONDS);
 
-            System.out.println(" i = " + i + " result = " + result + " time = " + (nanoTimeEnd - nanoTimeBegin));
-            series.getData().add(new XYChart.Data(i, nanoTimeEnd - nanoTimeBegin));
+            System.out.println(" Number of threads = " + i + " result = " + result + " elapsedTime = " + elapsedTime);
+            series.getData().add(new XYChart.Data(i, elapsedTime));
 
-            // Thread.sleep(2000);
 
         }
 
         Scene scene = new Scene(lineChart, 800, 600);
+        lineChart.setAnimated(false);
         lineChart.getData().add(series);
 
         primaryStage.setScene(scene);
         primaryStage.show();
+
+        WritableImage wim = lineChart.snapshot(new SnapshotParameters(), null);
+
+        scene.snapshot(wim);
+
+        File file = new File("ChartImage.png");
+
+        try {
+            ImageIO.write(SwingFXUtils.fromFXImage(wim, null), "png", file);
+        } catch (Exception s) {
+        }
     }
 }
