@@ -101,11 +101,12 @@ public class Main extends Application {
 
         scene.snapshot(wim);
 
-        File file = new File("ChartImage.png");
+        File file = new File("ChartImage_Adder.png");
 
         try {
             ImageIO.write(SwingFXUtils.fromFXImage(wim, null), "png", file);
         } catch (Exception s) {
         }
+
     }
 }

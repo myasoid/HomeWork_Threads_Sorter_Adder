@@ -30,7 +30,7 @@ public class Adder implements Callable<Long> {
                 result += array[i];
             }
 
-            return result ;
+            return result;
         }
 
     }
